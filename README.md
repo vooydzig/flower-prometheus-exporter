@@ -1,10 +1,9 @@
-==========================
 flower-prometheus-exporter
 ==========================
 
 flower-prometheus-exporter is a little exporter for Celery related metrics based on Flower API in 
 order to get picked up by Prometheus. Main idea is to setup alerting based on flower monitoring. 
-This was *hugely* inspired by celery-prometheus-exported. 
+This was **hugely** inspired by celery-prometheus-exported. 
 
 So far it provides access to the following metrics:
 
