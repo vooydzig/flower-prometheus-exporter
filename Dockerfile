@@ -6,7 +6,7 @@ COPY requirements.txt /app/
 WORKDIR /app
 
 RUN pip install -r requirements.txt
-COPY flower_prometheus_exporter.py /app/
+COPY flower_prometheus_exporter.py docker-entrypoint.sh /app/
 ENTRYPOINT ["/bin/sh", "/app/docker-entrypoint.sh"]
 CMD []
 
