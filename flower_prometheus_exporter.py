@@ -16,13 +16,13 @@ LOG_FORMAT = '[%(asctime)s: %(levelname)s/%(name)s] - %(message)s'
 
 TASKS = prometheus_client.Gauge(
     'celery_tasks',
-    'Number of tasks per flower instance',
-    ['flower', 'worker']
+    'Number of tasks per flower instance per state',
+    ['flower', 'queue', 'state']
 )
 TASKS_NAME = prometheus_client.Gauge(
     'celery_tasks_by_name',
     'Number of tasks per name',
-    ['flower', 'worker', 'name']
+    ['flower', 'queue', 'name', 'state']
 )
 
 
@@ -32,7 +32,7 @@ class MonitorThread(threading.Thread):
         self.log = logging.getLogger(f'monitor.{flower_host}')
         self.log.info('Setting up monitor thread')
         self.log.debug(f"Running monitoring thread for {self.flower_host} host.")
-        super(MonitorThread, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     @property
     def workers_endpoint(self):
@@ -63,12 +63,30 @@ class MonitorThread(threading.Thread):
 
     def parse_worker(self, worker, info):
         self.log.debug(f'Parsing worker {worker}')
-        tasks = info['stats']['total']
-        total_tasks = sum(tasks.values())
+        queues = {q['name']: q['routing_key'] for q in info.get('active_queues', [])}
 
-        TASKS.labels(flower=self.flower_host, worker=worker).set(total_tasks)
-        for task, cnt in tasks.items():
-            TASKS_NAME.labels(flower=self.flower_host, worker=worker, name=task).set(cnt)
+        for state in {'scheduled', 'active', 'reserved', 'revoked'}:
+            tasks_by_state = info.get(state, [])
+            for q_name, cnt in self.count_tasks_by_queue(queues, tasks_by_state, state=state).items():
+                TASKS.labels(flower=self.flower_host, queue=q_name, state=state.upper()).set(cnt)
+
+    def count_tasks_by_queue(self, queues, tasks_by_state, state):
+        self.log.debug(f'Counting tasks in state "{state}"')
+        counter = {}
+        for t in tasks_by_state:
+            try:
+                q_name = self.get_queue_name(queues, t)
+            except KeyError:
+                continue
+            counter[q_name] = counter.get(q_name, 0) + 1
+        return counter
+
+    def get_queue_name(self, queues, task):
+        if 'delivery_info' in task:
+            q_name = queues[task['delivery_info']['routing_key']]
+        else:
+            q_name = queues[task['request']['delivery_info']['routing_key']]
+        return q_name
 
     def run(self):
         self.log.info(f'Running monitor thread for {self.flower_host}')
