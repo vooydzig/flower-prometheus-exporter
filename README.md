@@ -7,10 +7,9 @@ This was **hugely** inspired by celery-prometheus-exported.
 
 So far it provides access to the following metrics:
 
-* `celery_tasks` exposes the number of tasks currently known to the queue
+* `celery_tasks_by_queue` exposes the number of tasks currently in the queue
   grouped by `flower host`
-* `celery_tasks_by_name` exposes the number of tasks currently known to the queue
-  grouped by `name` and `flower host`.
+
 
 How to use
 ==========
